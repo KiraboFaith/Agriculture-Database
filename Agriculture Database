@@ -1,1 +1,431 @@
+-- AGRICULTURE DATABASE: Coffee Farmers Management System
+-- Group 10
+-- CAROL NADDUNGA S24B23/038 | ANGELA MAGOOLA M23B23/047
+-- KIRABO FAITH KIGUNDDU | ATURINDA BEINEMBABAZI | KAKAIRE SHAWN FORTUNE
+
+CREATE DATABASE IF NOT EXISTS agriculture_database;
+USE agriculture_database;
+
+
+-- LOCATION TABLES
+
+CREATE TABLE REGION (
+    Region_ID   INT PRIMARY KEY AUTO_INCREMENT,
+    Region_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE DISTRICT (
+    District_ID   INT PRIMARY KEY AUTO_INCREMENT,
+    District_name VARCHAR(100) NOT NULL,
+    Region_ID     INT NOT NULL,
+    FOREIGN KEY (Region_ID) REFERENCES REGION(Region_ID)
+);
+
+CREATE TABLE SUBCOUNTY (
+    Subcounty_ID   INT PRIMARY KEY AUTO_INCREMENT,
+    Subcounty_name VARCHAR(100) NOT NULL,
+    District_ID    INT NOT NULL,
+    FOREIGN KEY (District_ID) REFERENCES DISTRICT(District_ID)
+);
+
+CREATE TABLE VILLAGE (
+    Village_ID   INT PRIMARY KEY AUTO_INCREMENT,
+    Village_name VARCHAR(100) NOT NULL,
+    Subcounty_ID INT NOT NULL,
+    FOREIGN KEY (Subcounty_ID) REFERENCES SUBCOUNTY(Subcounty_ID)
+);
+
+
+-- PERSON (Supertype)
+
+CREATE TABLE PERSON (
+    Person_ID   INT PRIMARY KEY AUTO_INCREMENT,
+    Name        VARCHAR(150) NOT NULL,
+    NIN         VARCHAR(20)  NOT NULL UNIQUE,
+    Gender      ENUM('Male','Female','Other'),
+    Phone_no    VARCHAR(15),
+    Email       VARCHAR(100),
+    Address     VARCHAR(200),
+    Village_ID  INT,
+    Person_type ENUM('Farmer','Extension_Worker','Ministry_Staff','System_Admin') NOT NULL,
+    FOREIGN KEY (Village_ID) REFERENCES VILLAGE(Village_ID)
+);
+
+
+-- SUBTYPES
+
+CREATE TABLE FARMER (
+    Farmer_ID  INT PRIMARY KEY AUTO_INCREMENT,
+    Person_ID  INT NOT NULL UNIQUE,
+    Reg_Date   DATE,
+    Reg_Number VARCHAR(50) UNIQUE,
+    FOREIGN KEY (Person_ID) REFERENCES PERSON(Person_ID)
+);
+
+CREATE TABLE EXTENSION_WORKER (
+    Ext_ID        INT PRIMARY KEY AUTO_INCREMENT,
+    Person_ID     INT NOT NULL UNIQUE,
+    Qualification VARCHAR(100),
+    Hire_Date     DATE,
+    Status        ENUM('Active','Inactive') DEFAULT 'Active',
+    Village_ID    INT,
+    FOREIGN KEY (Person_ID)  REFERENCES PERSON(Person_ID),
+    FOREIGN KEY (Village_ID) REFERENCES VILLAGE(Village_ID)
+);
+
+CREATE TABLE MINISTRY_STAFF (
+    Staff_ID     INT PRIMARY KEY AUTO_INCREMENT,
+    Person_ID    INT NOT NULL UNIQUE,
+    Role         VARCHAR(100),
+    Access_level VARCHAR(50),
+    Hire_Date    DATE,
+    FOREIGN KEY (Person_ID) REFERENCES PERSON(Person_ID)
+);
+
+CREATE TABLE SYSTEM_ADMIN (
+    Admin_ID      INT PRIMARY KEY AUTO_INCREMENT,
+    Person_ID     INT NOT NULL UNIQUE,
+    Access_level  VARCHAR(50),
+    Status        ENUM('Active','Inactive') DEFAULT 'Active',
+    Username      VARCHAR(50)  NOT NULL UNIQUE,
+    Password_hash VARCHAR(255) NOT NULL,
+    FOREIGN KEY (Person_ID) REFERENCES PERSON(Person_ID)
+);
+
+CREATE TABLE ADMIN_ACTIVITY (
+    Activity_ID      INT PRIMARY KEY AUTO_INCREMENT,
+    Name             VARCHAR(150),
+    Date_carried_out DATETIME DEFAULT CURRENT_TIMESTAMP,
+    Activity         VARCHAR(255) NOT NULL,
+    Table_Name       VARCHAR(100),
+    Admin_ID         INT NOT NULL,
+    FOREIGN KEY (Admin_ID) REFERENCES SYSTEM_ADMIN(Admin_ID)
+);
+
+
+-- CORE TABLES
+
+CREATE TABLE PRODUCT (
+    Product_ID   INT PRIMARY KEY AUTO_INCREMENT,
+    Product_Type VARCHAR(100) NOT NULL,
+    Product_Name VARCHAR(150) NOT NULL,
+    Quantity     INT DEFAULT 0 CHECK (Quantity >= 0)
+);
+
+CREATE TABLE PLOT_FARM (
+    Plot_ID     INT PRIMARY KEY AUTO_INCREMENT,
+    PlotName    VARCHAR(100),
+    Size_Acres  DECIMAL(10,2) NOT NULL CHECK (Size_Acres > 0),
+    Coffee_type VARCHAR(100),
+    Start_Year  YEAR,
+    Farmer_ID   INT NOT NULL,
+    Village_ID  INT,
+    FOREIGN KEY (Farmer_ID)  REFERENCES FARMER(Farmer_ID),
+    FOREIGN KEY (Village_ID) REFERENCES VILLAGE(Village_ID)
+);
+
+CREATE TABLE FARM_VISIT (
+    Visit_ID       INT PRIMARY KEY AUTO_INCREMENT,
+    Purpose        VARCHAR(255) NOT NULL,
+    Visit_Date     DATE NOT NULL,
+    Status         ENUM('Scheduled','Completed','Cancelled') DEFAULT 'Scheduled',
+    Feedback       TEXT,
+    Follow_up_Date DATE,
+    Ext_ID         INT NOT NULL,
+    Farmer_ID      INT NOT NULL,
+    Plot_ID        INT,
+    FOREIGN KEY (Ext_ID)    REFERENCES EXTENSION_WORKER(Ext_ID),
+    FOREIGN KEY (Farmer_ID) REFERENCES FARMER(Farmer_ID),
+    FOREIGN KEY (Plot_ID)   REFERENCES PLOT_FARM(Plot_ID)
+);
+
+CREATE TABLE SUPPORT_REQUEST (
+    Request_ID   INT PRIMARY KEY AUTO_INCREMENT,
+    Request_type VARCHAR(100) NOT NULL,
+    Description  VARCHAR(255),
+    Status       ENUM('Pending','In Progress','Resolved') DEFAULT 'Pending',
+    Assigned_to  VARCHAR(100),
+    Resolved_by  VARCHAR(100),
+    Request_date DATE DEFAULT (CURRENT_DATE),
+    Farmer_ID    INT NOT NULL,
+    Worker_ID    INT,
+    FOREIGN KEY (Farmer_ID) REFERENCES FARMER(Farmer_ID),
+    FOREIGN KEY (Worker_ID) REFERENCES EXTENSION_WORKER(Ext_ID)
+);
+
+CREATE TABLE PRODUCTION_RECORD (
+    Production_ID INT PRIMARY KEY AUTO_INCREMENT,
+    Season        VARCHAR(50) NOT NULL,
+    Harvest_Date  DATE,
+    Quantity      DECIMAL(10,2) NOT NULL CHECK (Quantity > 0),
+    Year          YEAR NOT NULL,
+    Plot_ID       INT NOT NULL,
+    FOREIGN KEY (Plot_ID) REFERENCES PLOT_FARM(Plot_ID)
+);
+
+CREATE TABLE DISTRIBUTION (
+    Distribution_ID   INT PRIMARY KEY AUTO_INCREMENT,
+    Product_Type      VARCHAR(100),
+    Distribution_Date DATE NOT NULL,
+    Farmer_ID         INT NOT NULL,
+    Plot_ID           INT,
+    Product_ID        INT NOT NULL,
+    Staff_ID          INT,
+    Ext_ID            INT,
+    FOREIGN KEY (Farmer_ID)  REFERENCES FARMER(Farmer_ID),
+    FOREIGN KEY (Plot_ID)    REFERENCES PLOT_FARM(Plot_ID),
+    FOREIGN KEY (Product_ID) REFERENCES PRODUCT(Product_ID),
+    FOREIGN KEY (Staff_ID)   REFERENCES MINISTRY_STAFF(Staff_ID),
+    FOREIGN KEY (Ext_ID)     REFERENCES EXTENSION_WORKER(Ext_ID)
+);
+
+
+-- SAMPLE DATA
+
+INSERT INTO REGION (Region_name) VALUES ('Central');
+INSERT INTO DISTRICT (District_name, Region_ID) VALUES ('Mukono', 1);
+INSERT INTO SUBCOUNTY (Subcounty_name, District_ID) VALUES ('Mukono TC', 1);
+INSERT INTO VILLAGE (Village_name, Subcounty_ID) VALUES ('Seeta', 1);
+
+INSERT INTO PERSON (Name, NIN, Gender, Phone_no, Email, Address, Village_ID, Person_type) VALUES
+    ('Okello James',    'CM90001234567890','Male',   '0772000001','okello@mail.com',  'Seeta, Mukono', 1,'Farmer'),
+    ('Wasswa Paul',     'CM85003456789012','Male',   '0782000003','wasswa@mail.com',  'Mukono TC',     1,'Extension_Worker'),
+    ('Tumwine David',   'CM86001111222233','Male',   '0722000006','tumwine@mail.com', 'Kampala',       1,'Ministry_Staff'),
+    ('Ssemakula Brian', 'CM91004444555566','Male',   '0742000008','brian@mail.com',   'Kampala',       1,'System_Admin');
+
+INSERT INTO FARMER (Person_ID, Reg_Date, Reg_Number) VALUES (1,'2022-03-10','FRM-001');
+INSERT INTO EXTENSION_WORKER (Person_ID, Qualification, Hire_Date, Status, Village_ID) VALUES (2,'Diploma in Agriculture','2021-06-01','Active',1);
+INSERT INTO MINISTRY_STAFF (Person_ID, Role, Access_level, Hire_Date) VALUES (3,'Senior Officer','Level 2','2020-08-01');
+INSERT INTO SYSTEM_ADMIN (Person_ID, Access_level, Status, Username, Password_hash) VALUES (4,'Full','Active','admin_brian', SHA2('Admin@2026!',256));
+
+INSERT INTO PRODUCT (Product_Type, Product_Name, Quantity) VALUES ('Seedling','Robusta Seedling', 5000);
+INSERT INTO PLOT_FARM (PlotName, Size_Acres, Coffee_type, Start_Year, Farmer_ID, Village_ID) VALUES ('Okello Plot A', 2.5,'Robusta', 2020, 1, 1);
+INSERT INTO PRODUCTION_RECORD (Season, Harvest_Date, Quantity, Year, Plot_ID) VALUES ('Season A','2024-07-15', 800.00, 2024, 1);
+INSERT INTO FARM_VISIT (Purpose, Visit_Date, Status, Feedback, Ext_ID, Farmer_ID, Plot_ID) VALUES ('Crop inspection and advice','2025-02-10','Completed','Crop healthy, advised on spacing.', 1, 1, 1);
+INSERT INTO SUPPORT_REQUEST (Request_type, Description, Status, Assigned_to, Request_date, Farmer_ID, Worker_ID) VALUES ('Seedlings','Requested 200 Robusta seedlings','Resolved','Wasswa Paul','2025-01-15', 1, 1);
+INSERT INTO DISTRIBUTION (Product_Type, Distribution_Date, Farmer_ID, Plot_ID, Product_ID, Staff_ID) VALUES ('Seedling','2025-01-20', 1, 1, 1, 1);
+
+
+-- VIEWS
+
+CREATE VIEW view_farmer_location AS
+SELECT f.Farmer_ID, p.Name AS Farmer_Name, p.Phone_no, p.Email,
+       v.Village_name, sc.Subcounty_name, d.District_name, r.Region_name
+FROM FARMER f
+JOIN PERSON p          ON f.Person_ID    = p.Person_ID
+LEFT JOIN VILLAGE v    ON p.Village_ID   = v.Village_ID
+LEFT JOIN SUBCOUNTY sc ON v.Subcounty_ID = sc.Subcounty_ID
+LEFT JOIN DISTRICT d   ON sc.District_ID = d.District_ID
+LEFT JOIN REGION r     ON d.Region_ID    = r.Region_ID;
+
+CREATE VIEW view_production_summary AS
+SELECT f.Farmer_ID, p.Name AS Farmer_Name, pf.PlotName, pf.Coffee_type,
+       pr.Season, pr.Year, SUM(pr.Quantity) AS Total_kg
+FROM PRODUCTION_RECORD pr
+JOIN PLOT_FARM pf ON pr.Plot_ID   = pf.Plot_ID
+JOIN FARMER f     ON pf.Farmer_ID = f.Farmer_ID
+JOIN PERSON p     ON f.Person_ID  = p.Person_ID
+GROUP BY f.Farmer_ID, p.Name, pf.PlotName, pf.Coffee_type, pr.Season, pr.Year;
+
+CREATE VIEW view_open_requests AS
+SELECT sr.Request_ID, fp.Name AS Farmer_Name, sr.Request_type,
+       sr.Request_date, sr.Status, sr.Description, sr.Assigned_to
+FROM SUPPORT_REQUEST sr
+JOIN FARMER f  ON sr.Farmer_ID = f.Farmer_ID
+JOIN PERSON fp ON f.Person_ID  = fp.Person_ID
+WHERE sr.Status != 'Resolved';
+
+CREATE VIEW view_distribution_report AS
+SELECT d.Distribution_ID, fp.Name AS Farmer_Name, pr.Product_Name,
+       pr.Product_Type, d.Distribution_Date, sp.Name AS Distributed_By
+FROM DISTRIBUTION d
+JOIN FARMER f             ON d.Farmer_ID  = f.Farmer_ID
+JOIN PERSON fp            ON f.Person_ID  = fp.Person_ID
+JOIN PRODUCT pr           ON d.Product_ID = pr.Product_ID
+LEFT JOIN MINISTRY_STAFF ms ON d.Staff_ID   = ms.Staff_ID
+LEFT JOIN PERSON sp       ON ms.Person_ID = sp.Person_ID;
+
+
+-- STORED PROCEDURES
+
+DELIMITER $$
+
+CREATE PROCEDURE procedure_registerfarmer(
+    IN p_name VARCHAR(150), IN p_nin VARCHAR(20), IN p_phone VARCHAR(15),
+    IN p_email VARCHAR(100), IN p_address VARCHAR(200), IN p_village_id INT
+)
+BEGIN
+    DECLARE v_person_id INT;
+    INSERT INTO PERSON (Name, NIN, Phone_no, Email, Address, Village_ID, Person_type)
+    VALUES (p_name, p_nin, p_phone, p_email, p_address, p_village_id, 'Farmer');
+    SET v_person_id = LAST_INSERT_ID();
+    INSERT INTO FARMER (Person_ID, Reg_Date) VALUES (v_person_id, CURRENT_DATE);
+    SELECT LAST_INSERT_ID() AS New_Farmer_ID;
+END$$
+
+CREATE PROCEDURE procedure_addproduction(
+    IN p_plot_id INT, IN p_season VARCHAR(50), IN p_year YEAR,
+    IN p_harvest DATE, IN p_quantity DECIMAL(10,2)
+)
+BEGIN
+    INSERT INTO PRODUCTION_RECORD (Season, Harvest_Date, Quantity, Year, Plot_ID)
+    VALUES (p_season, p_harvest, p_quantity, p_year, p_plot_id);
+    SELECT 'Production record added successfully' AS Message;
+END$$
+
+CREATE PROCEDURE procedure_assignworker(IN p_request_id INT, IN p_worker_id INT)
+BEGIN
+    UPDATE SUPPORT_REQUEST
+    SET Worker_ID   = p_worker_id,
+        Status      = 'In Progress',
+        Assigned_to = (SELECT p.Name FROM EXTENSION_WORKER ew
+                       JOIN PERSON p ON ew.Person_ID = p.Person_ID
+                       WHERE ew.Ext_ID = p_worker_id)
+    WHERE Request_ID = p_request_id AND Status = 'Pending';
+    IF ROW_COUNT() = 0 THEN
+        SELECT 'Request not found or already assigned' AS Message;
+    ELSE
+        SELECT 'Worker assigned successfully' AS Message;
+    END IF;
+END$$
+
+CREATE PROCEDURE procedure_farmerreport(IN p_farmer_id INT)
+BEGIN
+    SELECT p.Name, p.Phone_no, p.Email, p.Address, v.Village_name, d.District_name
+    FROM FARMER f
+    JOIN PERSON p          ON f.Person_ID    = p.Person_ID
+    LEFT JOIN VILLAGE v    ON p.Village_ID   = v.Village_ID
+    LEFT JOIN SUBCOUNTY sc ON v.Subcounty_ID = sc.Subcounty_ID
+    LEFT JOIN DISTRICT d   ON sc.District_ID = d.District_ID
+    WHERE f.Farmer_ID = p_farmer_id;
+
+    SELECT PlotName, Size_Acres, Coffee_type, Start_Year
+    FROM PLOT_FARM WHERE Farmer_ID = p_farmer_id;
+
+    SELECT pr.Season, pr.Year, pr.Harvest_Date, pr.Quantity, pf.PlotName
+    FROM PRODUCTION_RECORD pr
+    JOIN PLOT_FARM pf ON pr.Plot_ID = pf.Plot_ID
+    WHERE pf.Farmer_ID = p_farmer_id;
+
+    SELECT Request_type, Request_date, Status, Description
+    FROM SUPPORT_REQUEST WHERE Farmer_ID = p_farmer_id;
+END$$
+
+DELIMITER ;
+
+
+-- TRIGGERS
+
+DELIMITER $$
+
+CREATE TRIGGER trigger_prevent_duplicate_production
+BEFORE INSERT ON PRODUCTION_RECORD
+FOR EACH ROW
+BEGIN
+    DECLARE v_count INT;
+    SELECT COUNT(*) INTO v_count FROM PRODUCTION_RECORD
+    WHERE Plot_ID = NEW.Plot_ID AND Season = NEW.Season AND Year = NEW.Year;
+    IF v_count > 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Duplicate: a production record for this plot, season and year already exists.';
+    END IF;
+END$$
+
+CREATE TRIGGER trigger_validate_plot_size
+BEFORE UPDATE ON PLOT_FARM
+FOR EACH ROW
+BEGIN
+    IF NEW.Size_Acres <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Plot size must be greater than zero.';
+    END IF;
+END$$
+
+CREATE TRIGGER trigger_check_visit_date
+BEFORE INSERT ON FARM_VISIT
+FOR EACH ROW
+BEGIN
+    IF NEW.Visit_Date < DATE_SUB(CURRENT_DATE, INTERVAL 1 YEAR) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Visit date cannot be more than 1 year in the past.';
+    END IF;
+END$$
+
+CREATE TRIGGER trigger_log_admin_activity
+AFTER INSERT ON DISTRIBUTION
+FOR EACH ROW
+BEGIN
+    INSERT INTO ADMIN_ACTIVITY (Name, Activity, Table_Name, Admin_ID)
+    SELECT 'Distribution Logged',
+           CONCAT('New distribution ID ', NEW.Distribution_ID, ' added'),
+           'DISTRIBUTION', Admin_ID
+    FROM SYSTEM_ADMIN LIMIT 1;
+END$$
+
+DELIMITER ;
+
+
+-- USER ROLES AND PRIVILEGES
+
+CREATE USER IF NOT EXISTS 'agri_admin'@'localhost'     IDENTIFIED BY 'Admin@Agri2026!';
+CREATE USER IF NOT EXISTS 'ministry_staff'@'localhost' IDENTIFIED BY 'Staff@Agri2026!';
+CREATE USER IF NOT EXISTS 'ext_worker'@'localhost'     IDENTIFIED BY 'Worker@Agri2026!';
+CREATE USER IF NOT EXISTS 'farmer_user'@'localhost'    IDENTIFIED BY 'Farmer@Agri2026!';
+
+GRANT ALL PRIVILEGES ON agriculture_database.* TO 'agri_admin'@'localhost';
+
+GRANT SELECT, INSERT, UPDATE ON agriculture_database.FARMER            TO 'ministry_staff'@'localhost';
+GRANT SELECT, INSERT, UPDATE ON agriculture_database.PRODUCTION_RECORD TO 'ministry_staff'@'localhost';
+GRANT SELECT, INSERT, UPDATE ON agriculture_database.DISTRIBUTION      TO 'ministry_staff'@'localhost';
+GRANT SELECT, INSERT, UPDATE ON agriculture_database.PRODUCT           TO 'ministry_staff'@'localhost';
+GRANT SELECT ON agriculture_database.view_production_summary           TO 'ministry_staff'@'localhost';
+GRANT SELECT ON agriculture_database.view_distribution_report          TO 'ministry_staff'@'localhost';
+GRANT SELECT ON agriculture_database.view_farmer_location              TO 'ministry_staff'@'localhost';
+
+GRANT SELECT ON agriculture_database.FARMER                            TO 'ext_worker'@'localhost';
+GRANT SELECT ON agriculture_database.PLOT_FARM                         TO 'ext_worker'@'localhost';
+GRANT SELECT, INSERT, UPDATE ON agriculture_database.FARM_VISIT        TO 'ext_worker'@'localhost';
+GRANT SELECT, INSERT, UPDATE ON agriculture_database.SUPPORT_REQUEST   TO 'ext_worker'@'localhost';
+GRANT SELECT ON agriculture_database.view_farmer_location              TO 'ext_worker'@'localhost';
+GRANT SELECT ON agriculture_database.view_open_requests                TO 'ext_worker'@'localhost';
+
+GRANT SELECT ON agriculture_database.view_production_summary           TO 'farmer_user'@'localhost';
+GRANT SELECT ON agriculture_database.view_open_requests                TO 'farmer_user'@'localhost';
+
+FLUSH PRIVILEGES;
+
+
+-- BACKUP STRATEGY (run from terminal, not inside MySQL)
+-- Backup:   mysqldump -u root -p agriculture_database > agriculture_backup.sql
+-- Restore:  mysql -u root -p agriculture_database < agriculture_backup.sql
+-- Cron:     0 2 * * * mysqldump -u root -pYourPassword agriculture_database > /backups/agri_$(date +\%F).sql
+
+
+-- TEST QUERIES
+
+SELECT * FROM view_farmer_location;
+SELECT * FROM view_production_summary;
+SELECT * FROM view_open_requests;
+SELECT * FROM view_distribution_report;
+
+CALL procedure_farmerreport(1);
+CALL procedure_assignworker(3, 2);
+CALL procedure_addproduction(3, 'Season B', 2025, '2025-11-10', 600.00);
+
+SELECT pf.Coffee_type, SUM(pr.Quantity) AS Total_kg
+FROM PRODUCTION_RECORD pr JOIN PLOT_FARM pf ON pr.Plot_ID = pf.Plot_ID
+GROUP BY pf.Coffee_type;
+
+SELECT d.District_name, COUNT(f.Farmer_ID) AS Total_Farmers
+FROM FARMER f
+JOIN PERSON p     ON f.Person_ID    = p.Person_ID
+JOIN VILLAGE v    ON p.Village_ID   = v.Village_ID
+JOIN SUBCOUNTY sc ON v.Subcounty_ID = sc.Subcounty_ID
+JOIN DISTRICT d   ON sc.District_ID = d.District_ID
+GROUP BY d.District_name;
+
+SELECT p.Name AS Worker, ew.Qualification, v.Village_name
+FROM EXTENSION_WORKER ew
+JOIN PERSON p       ON ew.Person_ID  = p.Person_ID
+LEFT JOIN VILLAGE v ON ew.Village_ID = v.Village_ID;
 
